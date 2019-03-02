@@ -1,5 +1,6 @@
 package hl7;
 
+import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.hl7v2.DefaultHapiContext;
 import ca.uhn.hl7v2.HL7Exception;
 import ca.uhn.hl7v2.HapiContext;
@@ -12,10 +13,12 @@ import ca.uhn.hl7v2.model.v25.segment.PID;
 import ca.uhn.hl7v2.parser.EncodingNotSupportedException;
 import ca.uhn.hl7v2.parser.PipeParser;
 import ca.uhn.hl7v2.validation.impl.NoValidation;
+import org.hl7.fhir.r4.model.*;
 
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -25,8 +28,202 @@ import java.util.concurrent.ThreadLocalRandom;
 public class HL7Utils {
 
 
-    public HL7Utils() {
+    private FhirContext ctxR4;
 
+    public HL7Utils() {
+        ctxR4 = FhirContext.forR4();
+    }
+
+    public Observation getObservationBySNOMED(String snomedId, String value) {
+        Observation observation = null;
+        try {
+
+            observation = new Observation();
+            observation.setStatus(Observation.ObservationStatus.FINAL);
+            CodeableConcept codeableConcept = new CodeableConcept();
+            Coding coding = new Coding();
+            coding.setSystem("http://terminology.hl7.org/CodeSystem/observation-category");
+            coding.setDisplay("Vital Signs");
+            coding.setCode("vital-signs");
+            List<CodeableConcept> codeableConceptsList = new ArrayList<>();
+            observation.setCategory(codeableConceptsList);
+
+            switch(snomedId)
+            {
+                case "271649006": //Systolic blood pressure
+                    observation
+                            .getCode()
+                            .addCoding()
+                            .setSystem("http://snomed.info/sct")
+                            .setCode("271649006")
+                            .setDisplay("Systolic blood pressure");
+
+                    observation.setValue(
+                            new Quantity()
+                                    .setValue(Long.parseLong(value))
+                                    .setUnit("mmHg")
+                                    .setSystem("http://unitsofmeasure.org")
+                                    .setCode("mm[Hg]"));
+                    break;
+                case "271650006": //Diastolic blood pressure
+                    observation
+                            .getCode()
+                            .addCoding()
+                            .setSystem("http://snomed.info/sct")
+                            .setCode("271650006")
+                            .setDisplay("Diastolic blood pressure");
+
+                    observation.setValue(
+                            new Quantity()
+                                    .setValue(Long.parseLong(value))
+                                    .setUnit("mmHg")
+                                    .setSystem("http://unitsofmeasure.org")
+                                    .setCode("mm[Hg]"));
+                    break;
+
+                case "6797001": //Mean blood pressure
+                    observation
+                            .getCode()
+                            .addCoding()
+                            .setSystem("http://snomed.info/sct")
+                            .setCode("6797001")
+                            .setDisplay("Mean blood pressure");
+
+                    observation.setValue(
+                            new Quantity()
+                                    .setValue(Long.parseLong(value))
+                                    .setUnit("mmHg")
+                                    .setSystem("http://unitsofmeasure.org")
+                                    .setCode("mm[Hg]"));
+                    break;
+
+                case "386725007": //Body temperature
+                    observation
+                            .getCode()
+                            .addCoding()
+                            .setSystem("http://snomed.info/sct")
+                            .setCode("386725007")
+                            .setDisplay("Body temperature");
+
+                    observation.setValue(
+                            new Quantity()
+                                    .setValue(Long.parseLong(value))
+                                    .setUnit("C")
+                                    .setSystem("http://unitsofmeasure.org")
+                                    .setCode("C"));
+                    break;
+
+
+                case "78564009": //Pulse rate
+                    observation
+                            .getCode()
+                            .addCoding()
+                            .setSystem("http://snomed.info/sct")
+                            .setCode("78564009")
+                            .setDisplay("Pulse rate");
+
+                    observation.setValue(
+                            new Quantity()
+                                    .setValue(Long.parseLong(value))
+                                    .setUnit("bpm")
+                                    .setSystem("http://unitsofmeasure.org")
+                                    .setCode("bpm"));
+                    break;
+
+                case "431314004": //SpO2
+                    observation
+                            .getCode()
+                            .addCoding()
+                            .setSystem("http://snomed.info/sct")
+                            .setCode("431314004")
+                            .setDisplay("SpO2");
+
+                    observation.setValue(
+                            new Quantity()
+                                    .setValue(Long.parseLong(value))
+                                    .setUnit("%")
+                                    .setSystem("http://unitsofmeasure.org")
+                                    .setCode("%"));
+                    break;
+
+
+
+                default:
+                    System.out.println("no match");
+            }
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return observation;
+    }
+
+    public String getFIHRfromV2(MSH msh, PID pid, OBX obx) {
+        String FIHRString = null;
+        try {
+
+
+            Patient patient = new Patient();
+            // Add an MRN (a patient identifier)
+            Identifier id = patient.addIdentifier();
+            id.setSystem("http://example.com/fictitious-mrns");
+            id.setValue(pid.getPatientID().getIDNumber().getValue());
+
+            // Add a name
+            HumanName name = patient.addName();
+            name.setUse(HumanName.NameUse.OFFICIAL);
+            name.setFamily(pid.getPatientName()[0].getFamilyName().getSurname().encode());
+            name.addGiven(pid.getPatientName()[0].getGivenName().encode());
+
+            SimpleDateFormat format = new SimpleDateFormat("yyyyMMddhhmmss");
+            Date date       = format.parse (msh.getDateTimeOfMessage().encode());
+
+            Observation observation = getObservationBySNOMED(obx.getObservationIdentifier().getIdentifier().encode(),obx.getObservationValue(0).encode());
+            DateTimeType edate = new DateTimeType();
+            edate.setValue(date);
+            observation.setEffective(edate);
+
+            // The observation refers to the patient using the ID, which is already
+            observation.setSubject(new Reference(patient.getId()));
+
+            // Create a bundle that will be used as a transaction
+            Bundle bundle = new Bundle();
+            bundle.setType(Bundle.BundleType.MESSAGE);
+
+            // Add the patient as an entry. This entry is a POST with an
+            // If-None-Exist header (conditional create) meaning that it
+            // will only be created if there isn't already a Patient with
+            // the identifier 12345
+            bundle.addEntry()
+                    .setFullUrl(patient.getId())
+                    .setResource(patient)
+                    .getRequest()
+                    .setUrl("Patient")
+                    .setIfNoneExist("identifier=http://acme.org/mrns|12345");
+            //.setMethod(HTTPVerbEnum.POST);
+
+            // Add the observation. This entry is a POST with no header
+            // (normal create) meaning that it will be created even if
+            // a similar resource already exists.
+            bundle.addEntry()
+                    .setResource(observation)
+                    .getRequest()
+                    .setUrl("Observation");
+            //.setMethod(HTTPVerbEnum.POST);
+
+
+            FIHRString = ctxR4.newXmlParser().encodeResourceToString(bundle);
+            //String encoded = ctxR4.newXmlParser().encodeResourceToString(bundle);
+            //System.out.println(encoded);
+
+            //String encoded = ctxR4.newXmlParser().encodeResourceToString(patient);
+            //System.out.println(encoded);
+
+
+        } catch (Exception ex){
+            ex.printStackTrace();
+        }
+        return FIHRString;
     }
 
     public String generateRecord() {
@@ -59,7 +256,6 @@ public class HL7Utils {
         return recordString;
     }
 
-
     public void parseORURecordPrintable(String recordString) {
         try {
 
@@ -86,6 +282,7 @@ public class HL7Utils {
             PID pid = ORUmsg.getPATIENT_RESULT().getPATIENT().getPID();
             String patientId = pid.getPatientID().getIDNumber().getValue();
 
+
             SimpleDateFormat format = new SimpleDateFormat("yyyyMMddhhmmss");
             Date date       = format.parse (msh.getDateTimeOfMessage().encode());
 
@@ -108,6 +305,63 @@ public class HL7Utils {
 
     }
 
+    public List<String> parseORURecordList(String recordString) {
+        List<String> oruStringList = null;
+        try {
+
+            HapiContext context = new DefaultHapiContext();
+
+            PipeParser parser = context.getPipeParser();
+            parser.setValidationContext(new NoValidation());
+
+            Message hapiMsg = null;
+            try {
+                // The parse method performs the actual parsing
+                hapiMsg = parser.parse(recordString);
+            } catch (EncodingNotSupportedException e) {
+                e.printStackTrace();
+
+            } catch (HL7Exception e) {
+                e.printStackTrace();
+
+            }
+
+            if(hapiMsg != null) {
+
+                oruStringList = new ArrayList<>();
+
+                ORU_R01 ORUmsg = (ORU_R01) hapiMsg;
+                MSH msh = ORUmsg.getMSH();
+
+                PID pid = ORUmsg.getPATIENT_RESULT().getPATIENT().getPID();
+                String patientId = pid.getPatientID().getIDNumber().getValue();
+
+                List<ORU_R01_OBSERVATION> observations = ORUmsg.getPATIENT_RESULT().getORDER_OBSERVATION().getOBSERVATIONAll();
+
+                for (ORU_R01_OBSERVATION oru_r01_observation : observations) {
+
+                    OBX obx = oru_r01_observation.getOBX();
+                    /*
+                    String obx_ident = obx.getObservationIdentifier().getIdentifier().encode();
+                    String obx_time = obx.getDateTimeOfTheObservation().encode();
+                    String obx_value = obx.getObservationValue(0).encode();
+
+                    String returnString = patientId + "," + obx_time + "," + obx_ident + "," + obx_value;
+                    */
+                    String returnString = getFIHRfromV2(msh,pid,obx);
+                    System.out.println(returnString);
+                    oruStringList.add(returnString);
+                }
+            }
+
+
+
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return oruStringList;
+    }
 
     public void parseORURecord(String recordString) {
         try {
