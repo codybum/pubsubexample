@@ -35,6 +35,7 @@ public class ActiveMQHL7Consumer {
                             String text = textMessage.getText();
                             text = text.replace("\r", "\n\t");
                             System.out.println("ActiveMQHL7Consumer(): [Received] \n\t" + text);
+                            System.out.println("");
                         }
 
 

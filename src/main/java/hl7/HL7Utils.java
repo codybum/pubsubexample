@@ -89,16 +89,15 @@ public class HL7Utils {
             SimpleDateFormat format = new SimpleDateFormat("yyyyMMddhhmmss");
             Date date       = format.parse (msh.getDateTimeOfMessage().encode());
 
-            System.out.println("Patient ID:\t\t" + patientId);
-            System.out.println("Record Date:\t" + date);
-
+            System.out.println("Patient ID:\t" + patientId + "\t" +"Date:\t" + date);
+            System.out.println("--------------------------------------------------------------");
             List<ORU_R01_OBSERVATION> observations = ORUmsg.getPATIENT_RESULT().getORDER_OBSERVATION().getOBSERVATIONAll();
 
             for(ORU_R01_OBSERVATION oru_r01_observation : observations) {
 
                 OBX obx = oru_r01_observation.getOBX();
 
-                System.out.println("Result:\t" + obx.getObservationValue(0).encode() + "\t" + "Observation Type:" + obx.getObservationIdentifier().getText());
+                System.out.println("Result:\t" + obx.getObservationValue(0).encode() + "\t" + "Observation Type:\t" + obx.getObservationIdentifier().getText());
 
             }
             System.out.println("");
